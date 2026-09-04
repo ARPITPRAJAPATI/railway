@@ -1,0 +1,18 @@
+{
+  "name": "railway",
+  "version": "1.0.0",
+  "description": "Railway microservices management system",
+  "private": true,
+  "workspaces": [
+    "user-service"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=user-service",
+    "start": "npm run start --workspace=user-service",
+    "dev:user": "npm run dev --workspace=user-service",
+    "start:user": "npm run start --workspace=user-service"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
