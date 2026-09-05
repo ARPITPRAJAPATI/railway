@@ -1,7 +1,7 @@
 // middlewares/error.middleware.js
 const { AppError } = require('../utils/error');
-const { config } = require('../config');
-const logger = require('../config/logger');
+const { config } = require('../src/config');
+const logger = require('../src/config/logger');
 
 module.exports = (err, req, res, next) => {
     if (err instanceof AppError) {

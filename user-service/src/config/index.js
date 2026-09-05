@@ -1,9 +1,9 @@
 const getServiceName = () => {
     try {
-        return require('../package.json').name;
+        return require('../../package.json').name;
     } catch {
         try {
-            return require('../../package.json').name;
+            return require('../../../package.json').name;
         } catch {
             return 'user-service';
         }

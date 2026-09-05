@@ -2,15 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
-const { config } = require('./config');
-const logger = require('./config/logger');
+const { config } = require('./src/config/index.js');
+const logger = require('./src/config/logger.js');
 
-const authRoutes = require('./routes/auth.route');
-const userRoutes = require('./routes/user.route');
+const authRoutes = require('./src/routes/auth.route.js');
+const userRoutes = require('./src/routes/user.route.js');
 
-const { corsMiddleware } = require('./middlewares/cors.middleware');
-const errorHandler = require('./middlewares/error.middleware');
-const { reqLogger } = require('./middlewares/req.middleware.js');
+const { corsMiddleware } = require('./src/middlewares/cors.middleware.js');
+const errorHandler = require('./src/middlewares/error.middleware.js');
+const { reqLogger } = require('./src/middlewares/req.middleware.js');
 // const { disconnectProducer } = require('./config/kafka');
 
 const app = express();
