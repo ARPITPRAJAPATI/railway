@@ -1,4 +1,4 @@
-const logger = require('../user-service/src/config/logger');
+const logger = require('../config/logger');
 
 const reqLogger = (req, res, next) => {
     logger.debug(`[${req.method}] ${req.originalUrl}`);
