@@ -7,9 +7,6 @@
 .env
 .env.*
 *.env
-**/.env
-**/.env.*
-!**/.env.example
 !.env.example
 
 # Instead I am providing you .env.example (Use your values and you are all set)
@@ -161,15 +158,4 @@ serviceAccountKey.json
 
 # Turborepo cache
 .turbo
-
-# ============ Service-Specific ============
-# Add service-specific ignores here if needed
-# user-service/uploads/
-# booking-service/temp/
-user-service/.env
-!user-service/.env.example
-user-service/.agents/skills/prisma-composer-core-concepts/SKILL.md
-user-service/.claude/skills/prisma-composer-core-concepts/SKILL.md
-user-service/.cursor/skills/prisma-composer-core-concepts/SKILL.md
-user-service/.devin/skills/prisma-composer-core-concepts/SKILL.md
 
