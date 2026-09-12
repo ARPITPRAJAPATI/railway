@@ -1,5 +1,5 @@
 const asyncHandler = require("../utils/asyncHandler");
-const { BadRequestError } = require("../utils/error");
+const { BadRequestError, UnauthorizedError } = require("../utils/error");
 const authService = require("../services/auth.service");
 const { config } = require("../config");
 const getDeviceFingerprint = require("../utils/deviceFingerprint");
@@ -66,5 +66,30 @@ exports.login = asyncHandler(async (req, res) => {
         success: true,
         message: "User Logged In Successfully",
         loggedInUser
+    })
+})
+//rotate
+exports.rotateRefreshToken = asyncHandler(async (req, res) => {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) {
+        throw new UnauthorizedError("Refresh Token not valid");
+    }
+    const deviceId = getDeviceFingerprint(req);
+    const { newAccessToken, newRefreshToken } = await authService.rotateRefreshToken(refreshToken, deviceId);
+    res.cookie("accessToken", newAccessToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        maxAge: config.ACCESS_TOKEN_EXP_SEC * 1000
+    })
+    res.cookie("refreshToken", newRefreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        maxAge: config.REFRESH_TOKEN_EXP_SEC * 1000
+    })
+    res.status(200).json({
+        success: true,
+        message: "Refresh Token Rotated Successfully",
     })
 })

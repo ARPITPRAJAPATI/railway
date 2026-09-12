@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { sendOTP, verifyOTP, login } = require("../controllers/auth.controllers");
+const { sendOTP, verifyOTP, login, rotateRefreshToken } = require("../controllers/auth.controllers");
 
 router.post("/send-otp", sendOTP);
 router.post("/verify-otp", verifyOTP);
 router.post("/login", login);
-
+router.get("/refresh", rotateRefreshToken);
 module.exports = router;
