@@ -4,6 +4,9 @@ const { sendOTPEmail, verifyOTPEmail } = require("../utils/email");
 const prisma = require("../config/prisma");
 const bcrypt = require("bcrypt");
 const { config } = require("../config");
+const { generateAccessToken, generateRefreshToken } = require("../utils/auth");
+const { redis } = require("../config/redis");
+const jwt = require("jsonwebtoken");
 
 const sendOTP = async (firstName, lastName, email, password) => {
     const existingUser = await prisma.user.findUnique({
@@ -48,7 +51,32 @@ const verifyOTP = async (otp, otpSessionId) => {
     return safeUser;
 };
 
+const login = async (email, password, deviceId) => {
+    const existingUser = await prisma.user.findUnique({
+        where: { email }
+    });
+    if (!existingUser) {
+        throw new BadRequestError("User not found");
+    }
+    const isPasswordValid = await bcrypt.compare(password, existingUser.password);
+    if (!isPasswordValid) {
+        throw new BadRequestError("Invalid password");
+    }
+
+    const accessToken = generateAccessToken(existingUser.id);
+    const refreshToken = generateRefreshToken(existingUser.id);
+    const { jti } = jwt.decode(refreshToken);
+
+    await redis.set(`refresh:${existingUser.id}:${deviceId}`, jti, "EX", config.REFRESH_TOKEN_EXP_SEC);
+
+    const { password: _password, ...safeUser } = existingUser;
+    await redis.set(`user:${existingUser.id}`, JSON.stringify(safeUser), "EX", config.REDIS_USER_TTL);
+
+    return { accessToken, refreshToken, loggedInUser: safeUser };
+};
+
 module.exports = {
     sendOTP,
-    verifyOTP
+    verifyOTP,
+    login
 };
