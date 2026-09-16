@@ -9,6 +9,8 @@ const { redis } = require("../config/redis");
 const jwt = require("jsonwebtoken");
 const asyncHandler = require("../utils/asyncHandler");
 const { OAuth2Client } = require("google-auth-library");
+const logger = require("../config/logger");
+const notificationProducer = require("../kafka/producer/notification.producer");
 const client = new OAuth2Client(config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET);
 
 const sendOTP = async (firstName, lastName, email, password) => {
@@ -21,7 +23,8 @@ const sendOTP = async (firstName, lastName, email, password) => {
     const hashedPassword = await bcrypt.hash(password, 12);
     const meta = { firstName, lastName, email, hashedPassword };
     const { otp, otpSessionId } = await generateAndStoreOtp(meta);
-    await sendOTPEmail(email, otp);
+    await notificationProducer.sendOTPEmail(email, otp, (config.OTP_TTL / 60));
+    logger.info(`otp sent to ${email}`);
     return { otpSessionId };
 };
 
@@ -48,7 +51,12 @@ const verifyOTP = async (otp, otpSessionId) => {
         }
     });
 
-    await verifyOTPEmail(meta);
+    try {
+        await notificationProducer.sendWelcomeEmail(user.email, user.firstName);
+        logger.info(`Welcome email event sent to Kafka for ${user.email}`);
+    } catch (kafkaErr) {
+        logger.error(`Failed to produce welcome email event for ${user.email}:`, kafkaErr.message);
+    }
 
     const { password: _, ...safeUser } = user;
     return safeUser;

@@ -11,7 +11,7 @@ const userRoutes = require('./src/routes/user.route.js');
 const { corsMiddleware } = require('./src/middlewares/cors.middleware.js');
 const errorHandler = require('./src/middlewares/error.middleware.js');
 const { reqLogger } = require('./src/middlewares/req.middleware.js');
-// const { disconnectProducer } = require('./config/kafka');
+const { connectProducer, disconnectProducer } = require('./src/kafka');
 
 const app = express();
 
@@ -40,24 +40,26 @@ app.use(errorHandler)
 
 const startServer = async () => {
     try {
+        await connectProducer();
+
         const server = app.listen(config.PORT, () => {
             logger.info(
                 `${config.SERVICE_NAME} is running on http://localhost:${config.PORT}`
             );
-        })
+        });
+
         // Graceful shutdown
-        //   const shutdown = async () => {
-        //        logger.info('Shutting down gracefully...');
+        const shutdown = async () => {
+            logger.info('Shutting down gracefully...');
+            server.close(async () => {
+                await disconnectProducer();
+                logger.info('Server closed');
+                process.exit(0);
+            });
+        };
 
-        //        server.close(async () => {
-        //             await disconnectProducer();
-        //             logger.info('Server closed');
-        //             process.exit(0);
-        //        });
-        //   };
-
-        //   process.on('SIGTERM', shutdown);
-        //   process.on('SIGINT', shutdown);
+        process.on('SIGTERM', shutdown);
+        process.on('SIGINT', shutdown);
     } catch (error) {
         logger.error("Failed to Start Server", error);
         process.exit(1);
