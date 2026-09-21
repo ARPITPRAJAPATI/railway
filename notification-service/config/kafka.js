@@ -1,9 +1,8 @@
 const { Kafka, logLevel } = require('kafkajs');
 const logger = require('./logger');
 const { config } = require('.');
-
 const kafka = new Kafka({
-    clientId: config.KAFKA_CLIENT_ID || 'notification-service',
+    clientId: config.KAFKA_CLIENT_ID,
     brokers: [config.KAFKA_BROKER || 'localhost:9093'],
     logLevel: logLevel.ERROR,
     retry: {
@@ -20,13 +19,14 @@ const consumer = kafka.consumer({
     heartbeatInterval: 3000,
 });
 
+
 // Graceful shutdown
 const shutdown = async () => {
-    logger.info('Shutting down Kafka consumer connections...');
-    try {
-        await consumer.disconnect();
-    } catch (err) {
-        logger.error('Error disconnecting Kafka consumer:', err.message);
+    logger.info('Shutting down Kafka connections...');
+    await consumer.disconnect();
+    if (isProducerConnected) {
+        await producer.disconnect();
+        isProducerConnected = false;
     }
     process.exit(0);
 };
@@ -34,4 +34,4 @@ const shutdown = async () => {
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
-module.exports = { kafka, consumer };
+module.exports = { kafka, consumer, producer, connectProducer };

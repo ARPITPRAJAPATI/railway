@@ -1,25 +1,59 @@
-const { verifyAccessToken } = require('../utils/auth');
+const jwt = require('jsonwebtoken');
+const { config } = require('../config');
 const { UnauthorizedError } = require('../utils/error');
-const asyncHandler = require('../utils/asyncHandler');
+const logger = require('../config/logger');
 
-const requireAuth = asyncHandler(async (req, res, next) => {
-    const accessToken = req.cookies?.accessToken || req.headers.authorization?.split(" ")[1];
-
-    if (!accessToken) {
-        throw new UnauthorizedError("unauthorized access");
-    }
-
+/**
+ * Middleware to verify access token from Authorization header
+ * This is going to be our authentication mechanism which will authenticate user
+ * Extracts user ID and attaches it to request headers for downstream services
+ */
+function requireAuth(req, res, next) {
     try {
-        const payload = verifyAccessToken(accessToken);
-        req.user = {
-            id: payload.id || payload.userId
-        };
-        next();
-    } catch (error) {
-        throw new UnauthorizedError("Invalid or expired Access Token");
-    }
-});
+        let accessToken;
 
-module.exports = {
-    requireAuth
-};
+        // 1. Try Authorization header (service-to-service / mobile clients)
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            accessToken = authHeader.split(' ')[1];
+        }
+
+        // 2. Fall back to httpOnly cookie (browser clients)
+        if (!accessToken && req.cookies) {
+            accessToken = req.cookies.accessToken;
+        }
+
+        if (!accessToken) {
+            throw new UnauthorizedError('Authorization token missing');
+        }
+
+        // Verify access token
+        const payload = jwt.verify(accessToken, config.JWT_ACCESS_SECRET);
+
+        if (!payload.id) {
+            throw new UnauthorizedError('Invalid token payload');
+        }
+
+        // Attach user context to request for downstream services
+        req.user = {
+            id: payload.id,
+        };
+
+        // Add user ID to headers for proxied requests
+        req.headers['x-user-id'] = payload.id.toString();
+
+        logger.debug(`User ${payload.id} authenticated successfully`);
+
+        next();
+    } catch (err) {
+        if (err.name === 'TokenExpiredError') {
+            return next(new UnauthorizedError('Access token expired', 'TOKEN_EXPIRED'));
+        }
+        if (err.name === 'JsonWebTokenError') {
+            return next(new UnauthorizedError('Invalid access token', 'TOKEN_INVALID'));
+        }
+        return next(err);
+    }
+}
+
+module.exports = { requireAuth };
