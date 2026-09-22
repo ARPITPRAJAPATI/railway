@@ -49,6 +49,18 @@ class InternalServerError extends AppError {
     }
 }
 
+class GatewayTimeoutError extends AppError {
+    constructor(message = 'Gateway Timeout', code = 'GATEWAY_TIMEOUT') {
+        super(message, 504, code);
+    }
+}
+
+class ServiceUnavailableError extends AppError {
+    constructor(message = 'Service Unavailable', code = 'SERVICE_UNAVAILABLE') {
+        super(message, 503, code);
+    }
+}
+
 module.exports = {
     AppError,
     BadRequestError,
@@ -57,5 +69,7 @@ module.exports = {
     NotFoundError,
     ConflictError,
     TooManyRequestsError,
-    InternalServerError
+    InternalServerError,
+    GatewayTimeoutError,
+    ServiceUnavailableError,
 };
