@@ -27,7 +27,7 @@ let isConnected = false;
 const connectProducer = async () => {
     if (!isConnected) {
         await producer.connect();
-        isConnected = true;
+        isConnected = true; // kafka 
         logger.info('Kafka producer connected');
     }
 };
