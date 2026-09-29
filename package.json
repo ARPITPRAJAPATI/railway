@@ -7,7 +7,8 @@
     "user-service",
     "notification-service",
     "api-gateway",
-    "admin-service"
+    "admin-service",
+    "search-service"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=api-gateway",
@@ -19,7 +20,9 @@
     "dev:notification": "npm run dev --workspace=notification-service",
     "start:notification": "npm run start --workspace=notification-service",
     "dev:admin": "npm run dev --workspace=admin-service",
-    "start:admin": "npm run start --workspace=admin-service"
+    "start:admin": "npm run start --workspace=admin-service",
+    "dev:search": "npm run dev --workspace=search-service",
+    "start:search": "npm run start --workspace=search-service"
   },
   "keywords": [],
   "author": "",
