@@ -132,3 +132,135 @@ const indexSchedule = async (scheduleEvent) => {
         logger.warn(`Could not index schedule for train ${trainId}: ${err.message}`);
     }
 };
+// ═══════════════════════════════════════════════════
+//  SEARCH OPERATIONS (called by API)
+// ═══════════════════════════════════════════════════
+
+/**
+ * Search trains running between two stations on a given date.
+ * Supports fuzzy matching on station names.
+ */
+const searchTrains = async (from, to, date) => {
+    const fromStation = await resolveStation(from);
+    const toStation = await resolveStation(to);
+
+    if (!fromStation) return { trains: [], message: `Station "${from}" not found` };
+    if (!toStation) return { trains: [], message: `Station "${to}" not found` };
+
+    const query = {
+        bool: {
+            must: [
+                {
+                    nested: {
+                        path: 'route',
+                        query: { term: { 'route.stationId': fromStation.stationId } },
+                        inner_hits: { name: 'from_station' },
+                    },
+                },
+                {
+                    nested: {
+                        path: 'route',
+                        query: { term: { 'route.stationId': toStation.stationId } },
+                        inner_hits: { name: 'to_station' },
+                    },
+                },
+            ],
+        },
+    };
+
+    const result = await esClient.search({
+        index: TRAIN_INDEX,
+        query,
+        size: 50,
+    });
+
+    const normalize = (d) => new Date(d).toISOString().slice(0, 10);
+
+    const trains = result.hits.hits
+        .map((hit) => {
+            const src = hit._source;
+            const fromHit = hit.inner_hits.from_station.hits.hits[0]?._source;
+            const toHit = hit.inner_hits.to_station.hits.hits[0]?._source;
+
+            if (!fromHit || !toHit || fromHit.sequenceNumber >= toHit.sequenceNumber) {
+                return null;
+            }
+
+            let scheduleInfo = null;
+            if (date && src.schedules && src.schedules.length > 0) {
+                scheduleInfo = src.schedules.find(
+                    (s) => s.status === 'ACTIVE' && normalize(s.departureDate) === date
+                ) || null;
+            }
+
+            return {
+                trainId: src.trainId,
+                trainNumber: src.trainNumber,
+                trainName: src.trainName,
+                from: { name: fromHit.stationName, code: fromHit.stationCode, departure: fromHit.departureTime },
+                to: { name: toHit.stationName, code: toHit.stationCode, arrival: toHit.arrivalTime },
+                seatSummary: src.seatSummary,
+                schedule: scheduleInfo,
+            };
+        })
+        .filter(Boolean);
+
+    return {
+        from: { resolved: fromStation.name, code: fromStation.code },
+        to: { resolved: toStation.name, code: toStation.code },
+        date: date || 'any',
+        count: trains.length,
+        trains,
+    };
+};
+
+/**
+ * Fuzzy-resolve a station name/code to its ID.
+ * Three strategies: exact code → completion suggester → fuzzy match
+ */
+const resolveStation = async (input) => {
+    // 1. Try exact code match
+    const exactResult = await esClient.search({
+        index: STATION_INDEX,
+        query: { term: { code: input.toUpperCase() } },
+        size: 1,
+    });
+    if (exactResult.hits.hits.length > 0) return exactResult.hits.hits[0]._source;
+
+    // 2. Try completion suggester (handles typos like "dehli" → "Delhi")
+    try {
+        const suggestResult = await esClient.search({
+            index: STATION_INDEX,
+            suggest: {
+                station_suggest: {
+                    prefix: input,
+                    completion: {
+                        field: 'suggest',
+                        fuzzy: { fuzziness: 'AUTO' },
+                        size: 1,
+                    },
+                },
+            },
+        });
+        const options = suggestResult.suggest?.station_suggest?.[0]?.options || [];
+        if (options.length > 0) return options[0]._source;
+    } catch (err) {
+        logger.warn(`Suggest fallback failed: ${err.message}`);
+    }
+
+    // 3. Fuzzy match on name
+    const fuzzyResult = await esClient.search({
+        index: STATION_INDEX,
+        query: {
+            multi_match: {
+                query: input,
+                fields: ['name', 'city'],
+                fuzziness: 'AUTO',
+                prefix_length: 1,
+            },
+        },
+        size: 1,
+    });
+
+    return fuzzyResult.hits.hits.length > 0 ? fuzzyResult.hits.hits[0]._source : null;
+};
