@@ -258,5 +258,5 @@ npm run dev:notification
 
 ---
 
-## 📄 License
+
 ISC © [ARPIT PRAJAPATI](https://github.com/ARPITPRAJAPATI)
