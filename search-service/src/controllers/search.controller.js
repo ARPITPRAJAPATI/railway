@@ -4,9 +4,10 @@ const searchService = require('../services/search.service');
 
 exports.searchTrains = asyncHandler(async (req, res) => {
     const { from, to, date } = req.query;
-    if (!from || !to) throw new BadRequestError('from and to station names/codes are required');
+    if (!from || !to)
+        throw new BadRequestError('from and to station names/codes are required');
     const results = await searchService.searchTrains(from, to, date || null);
-    res.json({ success: true, data: results });
+    return res.json({ success: true, data: results });
 });
 
 exports.autocomplete = asyncHandler(async (req, res) => {
